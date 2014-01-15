@@ -2,7 +2,7 @@
 " email: c0r73x@gmail.com
 " 
 " .vimrc
-" vvt_use_browser  *required
+" vvt_use_browser  *optional
 " vvt_browser_command  *optional
 " --------------------------------
 " Example
@@ -53,7 +53,7 @@ endif
 
 function! VVT(line1, line2)
     let content = join(getline(a:line1, a:line2), "\n")
-    let data = printf('{ "code" : "%s", "hidden" : "%d" , "language" : "%s" }',s:JSONEncode(content),1, s:parser(&ft))
+    let data = printf('{"code":"%s","language":"%s"}',s:JSONEncode(content), s:parser(&ft))
     let url = s:post('https://vvt.nu/api/pastebin.json', data)
     call s:finished(url)
 endfunction
@@ -74,11 +74,11 @@ endfunction
 
 function! s:finished(url)
     if a:url !~? '.*https.*'
-        echoerr "vvt: an error occurred:" a:url
+        echoerr "vvt.nu" s:jsonValue(a:url,'response')
         return
     endif
-    if g:vvt_browser_command == ''
-        echo a:url
+    echo a:url
+    if ! exists('g:loaded_vvt') || g:vvt_browser_command == '0' 
         return
     endif
     let cmd = substitute(g:vvt_browser_command, '%URL%', a:url, 'g')
@@ -95,7 +95,8 @@ function! s:post(url, data)
     let file = tempname()
     call writefile([a:data], file)
     let quote = &shellxquote == '"' ?    "'" : '"'
-    let res = system('curl -s -d @'.quote.file.quote.' '.a:url)
+    let header = '-H "Content-Type:application/json"'
+    let res = system('curl '.header.' -s -d @'.quote.file.quote.' '.a:url)
     call delete(file)
     return res
 endfunction
