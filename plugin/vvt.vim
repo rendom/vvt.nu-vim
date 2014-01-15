@@ -1,14 +1,14 @@
-"Author: vvt.nu - c0r73x
-"
-".vimrc
-"vvt_use_browser  *required
-"vvt_browser_command  *optional
-"--------------------------------
-"Example
-"let g:vvt_use_browser = 1
-"let g:vvt_browser_command = 'echo "%URL%" | xclip'
-"--------------------------------
-
+" author: vvt.nu - c0r73x
+" email: c0r73x@gmail.com
+" 
+" .vimrc
+" vvt_use_browser  *required
+" vvt_browser_command  *optional
+" --------------------------------
+" Example
+" let g:vvt_use_browser = 1
+" let g:vvt_browser_command = 'echo "%URL%" | xclip'
+" --------------------------------
 
 if exists('g:loaded_vvt')
     finish
@@ -100,13 +100,33 @@ function! s:post(url, data)
     return res
 endfunction
 
+function! s:jsonValue(string, val)
+    let ret=""
+perl << EOF
+    my $string = VIM::Eval('a:string');
+    my $val = VIM::Eval('a:val');
+
+    @res = $string =~ /"$val":"((?:(?!,").)*)"(,"|})/;
+    VIM::DoCommand("let ret=\"$res[0]\"");
+EOF
+    return ret
+endfunction
+
 function! GetVVT(url)
     let id = substitute(a:url, '^https\:\/\/vvt.nu\/','\1','')
-    let res = system('curl -s https://vvt.nu/api/'.id.'.raw')
-    let file = tempname()
-    call writefile([res],file,"b")
-    split
+    let res = system('curl -s https://vvt.nu/'.id.'.json')
+    let code = split(s:jsonValue(res,'code'),"\n")
+    let ft = s:jsonValue(res,'language')
+
+    if ft == 'c_cpp'
+        let ft='cpp'
+    endif
+    
+    let fn = s:jsonValue(res,'slug')
+    let file = tempname().fn
+    call writefile(code,file,"b")
     execute 'edit '.file
+    exec "set filetype=".ft
 endfunction
 
 command! -nargs=? -range=% VVTPaste :call VVT(<line1>, <line2>)
