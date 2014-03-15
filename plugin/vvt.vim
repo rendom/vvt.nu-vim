@@ -28,7 +28,7 @@ function! s:JSONEncode(string)
     return ret
 endfunction
 
-if !exists('g:vvt_use_browser')
+if exists('g:vvt_use_browser')
     if g:vvt_use_browser == 1
         if !exists('g:vvt_browser_command')
             if exists(':OpenBrowser')
