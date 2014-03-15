@@ -28,24 +28,26 @@ function! s:JSONEncode(string)
     return ret
 endfunction
 
-if g:vvt_use_browser == 1
-    if !exists('g:vvt_browser_command')
-        if exists(':OpenBrowser')
-            let g:vvt_browser_command = ":OpenBrowser %URL%"
-        elseif has('win32')
-            let g:vvt_browser_command = "!start rundll32 url.dll,FileProtocolHandler %URL%"
-        elseif has('mac')
-            let g:vvt_browser_command = "open %URL%"
-        elseif executable('xdg-open')
-            let g:vvt_browser_command = "xdg-open %URL%"
-        else
-            if has("unix")
-                if system('uname')=~'Darwin'
-                    let g:vvt_browser_command = "open %URL%"
-                else
-                    let g:vvt_browser_command = "dwb %URL% &"
-                end
+if !exists('g:vvt_use_browser')
+    if g:vvt_use_browser == 1
+        if !exists('g:vvt_browser_command')
+            if exists(':OpenBrowser')
+                let g:vvt_browser_command = ":OpenBrowser %URL%"
+            elseif has('win32')
+                let g:vvt_browser_command = "!start rundll32 url.dll,FileProtocolHandler %URL%"
+            elseif has('mac')
+                let g:vvt_browser_command = "open %URL%"
+            elseif executable('xdg-open')
+                let g:vvt_browser_command = "xdg-open %URL%"
             else
+                if has("unix")
+                    if system('uname')=~'Darwin'
+                        let g:vvt_browser_command = "open %URL%"
+                    else
+                        let g:vvt_browser_command = "dwb %URL% &"
+                    end
+                else
+                endif
             endif
         endif
     endif
