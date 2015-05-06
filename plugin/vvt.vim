@@ -1,6 +1,6 @@
 " author: vvt.nu - c0r73x
 " email: c0r73x@gmail.com
-" 
+"
 " .vimrc
 " vvt_use_browser  *optional
 " vvt_browser_command  *optional
@@ -32,19 +32,20 @@ if exists('g:vvt_use_browser')
     if g:vvt_use_browser == 1
         if !exists('g:vvt_browser_command')
             if exists(':OpenBrowser')
-                let g:vvt_browser_command = ":OpenBrowser %URL%"
+                let g:vvt_browser_command = ':OpenBrowser %URL%'
             elseif has('win32')
-                let g:vvt_browser_command = "!start rundll32 url.dll,FileProtocolHandler %URL%"
+                let g:vvt_browser_command = 
+                            \ '!start rundll32 url.dll,FileProtocolHandler %URL%'
             elseif has('mac')
-                let g:vvt_browser_command = "open %URL%"
+                let g:vvt_browser_command = 'open %URL%'
             elseif executable('xdg-open')
-                let g:vvt_browser_command = "xdg-open %URL%"
+                let g:vvt_browser_command = 'xdg-open %URL%'
             else
-                if has("unix")
-                    if system('uname')=~'Darwin'
-                        let g:vvt_browser_command = "open %URL%"
+                if has('unix')
+                    if system('uname') =~# 'Darwin'
+                        let g:vvt_browser_command = 'open %URL%'
                     else
-                        let g:vvt_browser_command = "dwb %URL% &"
+                        let g:vvt_browser_command = 'dwb %URL% &'
                     end
                 else
                 endif
@@ -55,19 +56,23 @@ endif
 
 function! VVT(line1, line2)
     let content = join(getline(a:line1, a:line2), "\n")
-    let data = printf('{"code":"%s","language":"%s"}',s:JSONEncode(content), s:parser(&ft))
+    let data = printf(
+                \ '{"code":"%s","language":"%s"}',
+                \ s:JSONEncode(content),
+                \ s:parser(&ft))
+
     let url = s:post('https://vvt.nu/api/pastebin.json', data)
     call s:finished(url)
 endfunction
 
 function! s:parser(type)
-    if a:type == ''
+    if a:type ==# ''
         return 'text'
-    elseif a:type == 'eruby'
+    elseif a:type ==# 'eruby'
         return 'ruby'
-    elseif a:type == 'zsh' || a:type == 'bash'
+    elseif a:type ==# 'zsh' || a:type ==# 'bash'
         return 'sh'
-    elseif a:type == 'cpp' || a:type == 'c'
+    elseif a:type ==# 'cpp' || a:type ==# 'c'
         return 'c_cpp'
     else
         return a:type
@@ -76,17 +81,17 @@ endfunction
 
 function! s:finished(url)
     if a:url !~? '.*https.*'
-        echoerr "vvt.nu" s:jsonValue(a:url,'response')
+        echoerr 'vvt.nu' s:jsonValue(a:url,'response')
         return
     endif
     echo a:url
-    if ! exists('g:loaded_vvt') || g:vvt_browser_command == '0' 
+    if ! exists('g:loaded_vvt') || !exists('g:vvt_browser_command')
         return
     endif
     let cmd = substitute(g:vvt_browser_command, '%URL%', a:url, 'g')
-    if cmd =~ '^!'
+    if cmd =~# '^!'
         silent! exec cmd
-    elseif cmd =~ '^:[A-Z]'
+    elseif cmd =~? '^:[A-Z]'
         exec cmd
     else
         call system(cmd)
@@ -96,7 +101,7 @@ endfunction
 function! s:post(url, data)
     let file = tempname()
     call writefile([a:data], file)
-    let quote = &shellxquote == '"' ?    "'" : '"'
+    let quote = &shellxquote ==# '"' ?    "'" : '"'
     let header = '-H "Content-Type:application/json"'
     let res = system('curl '.header.' -s -d @'.quote.file.quote.' '.a:url)
     call delete(file)
@@ -104,12 +109,12 @@ function! s:post(url, data)
 endfunction
 
 function! s:jsonValue(string, val)
-    let ret=""
+    let ret=''
 perl << EOF
     my $string = VIM::Eval('a:string');
     my $val = VIM::Eval('a:val');
 
-    @res = $string =~ /"$val":"((?:(?!,").)*)"(,"|})/;
+    @res = $string =~ /"$val":\s*"((?:(?!,").)*)"(,|})/;
     VIM::DoCommand("let ret=\"$res[0]\"");
 EOF
     return ret
@@ -121,15 +126,15 @@ function! GetVVT(url)
     let code = split(s:jsonValue(res,'code'),"\n")
     let ft = s:jsonValue(res,'language')
 
-    if ft == 'c_cpp'
+    if ft ==# 'c_cpp'
         let ft='cpp'
     endif
-    
+
     let fn = s:jsonValue(res,'slug')
     let file = tempname().fn
-    call writefile(code,file,"b")
+    call writefile(code,file,'b')
     execute 'edit '.file
-    exec "set filetype=".ft
+    exec 'set filetype='.ft
 endfunction
 
 command! -nargs=? -range=% VVTPaste :call VVT(<line1>, <line2>)
