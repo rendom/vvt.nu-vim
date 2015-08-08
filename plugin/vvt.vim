@@ -57,7 +57,7 @@ endif
 function! VVT(line1, line2)
     let content = join(getline(a:line1, a:line2), "\n")
     let data = printf(
-                \ '{"code":"%s","language":"%s"}',
+                \ '{"code":"%s","language":"%s","time":2}',
                 \ s:JSONEncode(content),
                 \ s:parser(&ft))
 
