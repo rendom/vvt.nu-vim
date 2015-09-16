@@ -80,15 +80,19 @@ function! s:parser(type)
 endfunction
 
 function! s:finished(url)
-    if a:url !~? '.*https.*'
-        echoerr 'vvt.nu' s:jsonValue(a:url,'response')
+    if a:url !~? '^https.*'
+        echoerr 'vvt.nu' 'Incorrect return type!'
         return
+    else
+        echom a:url
     endif
-    echo a:url
+
     if ! exists('g:loaded_vvt') || !exists('g:vvt_browser_command')
         return
     endif
+
     let cmd = substitute(g:vvt_browser_command, '%URL%', a:url, 'g')
+
     if cmd =~# '^!'
         silent! exec cmd
     elseif cmd =~? '^:[A-Z]'
@@ -99,38 +103,62 @@ function! s:finished(url)
 endfunction
 
 function! s:post(url, data)
-    let file = tempname()
-    call writefile([a:data], file)
-    let quote = &shellxquote ==# '"' ?    "'" : '"'
-    let header = '-H "Content-Type:application/json"'
-    let res = system('curl '.header.' -s -d @'.quote.file.quote.' '.a:url)
-    call delete(file)
+    let res = ''
+python << endpython
+import vim
+import urllib2
+
+postdata = vim.eval('a:data')
+url = vim.eval('a:url')
+
+req = urllib2.Request(url)
+req.add_header('User-Agent', 'vvt.vim/1.0')
+req.add_header('Content-Type', 'application/json')
+req.add_header('Connection', 'keep-alive')
+
+try:
+    res = urllib2.urlopen(req, postdata)
+    vim.command('let res = "' + res.read() + '"')
+except urllib2.HTTPError, e:
+    vim.command('echoerr "vvt.nu" "' + str(e.code) + ": " + e.reason + '"')
+endpython
     return res
-endfunction
-
-function! s:jsonValue(string, val)
-    let ret=''
-perl << EOF
-    my $string = VIM::Eval('a:string');
-    my $val = VIM::Eval('a:val');
-
-    @res = $string =~ /"$val":\s*"((?:(?!,").)*)"(,|})/;
-    VIM::DoCommand("let ret=\"$res[0]\"");
-EOF
-    return ret
 endfunction
 
 function! GetVVT(url)
     let id = substitute(a:url, '^https\:\/\/vvt.nu\/','\1','')
-    let res = system('curl -s https://vvt.nu/'.id.'.json')
-    let code = split(s:jsonValue(res,'code'),"\n")
-    let ft = s:jsonValue(res,'language')
+    let code = []
+    let ft = ''
+    let fn = ''
+
+python << endpython
+import vim
+import urllib2
+import json
+
+id = vim.eval('id')
+url = 'https://vvt.nu/' + id + '.json'
+
+req = urllib2.Request(url)
+req.add_header('User-Agent', 'vvt.vim/1.0')
+req.add_header('Accept', 'application/json')
+req.add_header('Connection', 'keep-alive')
+
+try:
+    res = urllib2.urlopen(req)
+    data = json.loads(res.read())
+
+    vim.command('let code = split("' + data['code'] + '", "\n")')
+    vim.command('let ft = "' + data['language'] + '"')
+    vim.command('let fn = "' + data['slug'] + '"')
+except urllib2.HTTPError, e:
+    vim.command('echoerr "vvt.nu" "' + str(e.code) + ": " + e.reason + '"')
+endpython
 
     if ft ==# 'c_cpp'
         let ft='cpp'
     endif
 
-    let fn = s:jsonValue(res,'slug')
     let file = tempname().fn
     call writefile(code,file,'b')
     execute 'edit '.file
