@@ -148,7 +148,7 @@ try:
     res = urllib2.urlopen(req)
     data = json.loads(res.read())
 
-    vim.command('let code = split("' + data['code'] + '", "\n")')
+    vim.command('let code = split(\'' + data['code'] + '\', "\n")')
     vim.command('let ft = "' + data['language'] + '"')
     vim.command('let fn = "' + data['slug'] + '"')
 except urllib2.HTTPError, e:
