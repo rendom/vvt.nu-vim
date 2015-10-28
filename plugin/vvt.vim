@@ -131,12 +131,15 @@ function! GetVVT(url)
     let ft = ''
     let fn = ''
 
+    let file = tempname().fn
 python << endpython
 import vim
 import urllib2
 import json
 
 id = vim.eval('id')
+file = vim.eval('file')
+
 url = 'https://vvt.nu/' + id + '.json'
 
 req = urllib2.Request(url)
@@ -148,7 +151,10 @@ try:
     res = urllib2.urlopen(req)
     data = json.loads(res.read())
 
-    vim.command('let code = split(\'' + data['code'] + '\', "\n")')
+    f = open(file, 'wb')
+    f.write(data['code'])
+    f.close()
+
     vim.command('let ft = "' + data['language'] + '"')
     vim.command('let fn = "' + data['slug'] + '"')
 except urllib2.HTTPError, e:
@@ -159,8 +165,6 @@ endpython
         let ft='cpp'
     endif
 
-    let file = tempname().fn
-    call writefile(code,file,'b')
     execute 'edit '.file
     exec 'set filetype='.ft
 endfunction
