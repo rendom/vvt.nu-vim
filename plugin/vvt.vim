@@ -16,16 +16,16 @@ endif
 let g:loaded_vvt=1
 
 function! s:JSONEncode(string)
-    let ret = a:string
-    let ret = substitute(ret,'\%x5C','\\\\','g')
-    let ret = substitute(ret,'\%x22','\\"','g')
-    let ret = substitute(ret,'\%x2F','/','g')
-    let ret = substitute(ret,'\%x08','\\b','g')
-    let ret = substitute(ret,'\%x0C','\\f','g')
-    let ret = substitute(ret,'\%x0A','\\n','g')
-    let ret = substitute(ret,'\%x0D','\\r','g')
-    let ret = substitute(ret,'\%x09','\\t','g')
-    return ret
+    let l:ret = a:string
+    let l:ret = substitute(l:ret,'\%x5C','\\\\','g')
+    let l:ret = substitute(l:ret,'\%x22','\\"','g')
+    let l:ret = substitute(l:ret,'\%x2F','/','g')
+    let l:ret = substitute(l:ret,'\%x08','\\b','g')
+    let l:ret = substitute(l:ret,'\%x0C','\\f','g')
+    let l:ret = substitute(l:ret,'\%x0A','\\n','g')
+    let l:ret = substitute(l:ret,'\%x0D','\\r','g')
+    let l:ret = substitute(l:ret,'\%x09','\\t','g')
+    return l:ret
 endfunction
 
 if exists('g:vvt_use_browser')
@@ -55,14 +55,14 @@ if exists('g:vvt_use_browser')
 endif
 
 function! VVT(line1, line2)
-    let content = join(getline(a:line1, a:line2), "\n")
-    let data = printf(
+    let l:content = join(getline(a:line1, a:line2), "\n")
+    let l:data = printf(
                 \ '{"code":"%s","language":"%s","time":2}',
-                \ s:JSONEncode(content),
-                \ s:parser(&ft))
+                \ s:JSONEncode(l:content),
+                \ s:parser(&filetype))
 
-    let url = s:post('https://vvt.nu/api/pastebin.json', data)
-    call s:finished(url)
+    let l:url = s:post('https://vvt.nu/api/pastebin.json', l:data)
+    call s:finished(l:url)
 endfunction
 
 function! s:parser(type)
@@ -91,82 +91,100 @@ function! s:finished(url)
         return
     endif
 
-    let cmd = substitute(g:vvt_browser_command, '%URL%', a:url, 'g')
+    let l:cmd = substitute(g:vvt_browser_command, '%URL%', a:url, 'g')
 
-    if cmd =~# '^!'
-        silent! exec cmd
-    elseif cmd =~? '^:[A-Z]'
-        exec cmd
+    if l:cmd =~# '^!'
+        silent! exec l:cmd
+    elseif l:cmd =~? '^:[A-Z]'
+        exec l:cmd
     else
-        call system(cmd)
+        call system(l:cmd)
     endif
 endfunction
 
 function! s:post(url, data)
-    let res = ''
+    let l:res = ''
 python << endpython
 import vim
-import urllib2
+import urllib3
+import certifi
 
 postdata = vim.eval('a:data')
 url = vim.eval('a:url')
 
-req = urllib2.Request(url)
-req.add_header('User-Agent', 'vvt.vim/1.0')
-req.add_header('Content-Type', 'application/json')
-req.add_header('Connection', 'keep-alive')
+headers = {
+    'User-Agent':   'vvt.vim/1.0',
+    'Content-Type': 'application/json',
+    'Connection':   'keep-alive'
+}
+
+http = urllib3.PoolManager(
+    10,
+    headers=headers,
+    cert_reqs='CERT_REQUIRED',
+    ca_certs=certifi.where()
+)
 
 try:
-    res = urllib2.urlopen(req, postdata)
-    vim.command('let res = "' + res.read() + '"')
-except urllib2.HTTPError, e:
+    res = http.request('POST', url, body=postdata)
+    vim.command('let l:res = "' + res.data + '"')
+except urllib3.exceptions.HTTPError, e:
     vim.command('echoerr "vvt.nu" "' + str(e.code) + ": " + e.reason + '"')
 endpython
-    return res
+    return l:res
 endfunction
 
 function! GetVVT(url)
-    let id = substitute(a:url, '^https\:\/\/vvt.nu\/','\1','')
-    let code = []
-    let ft = ''
-    let fn = ''
+    let l:id = substitute(a:url, '^https\:\/\/vvt.nu\/','\1','')
+    let l:code = []
+    let l:ft = ''
+    let l:fn = ''
 
-    let file = tempname().fn
+    let l:file = tempname() . l:fn
 python << endpython
 import vim
-import urllib2
+import urllib3
 import json
+import certifi
 
 id = vim.eval('id')
 file = vim.eval('file')
 
 url = 'https://vvt.nu/' + id + '.json'
 
-req = urllib2.Request(url)
-req.add_header('User-Agent', 'vvt.vim/1.0')
-req.add_header('Accept', 'application/json')
-req.add_header('Connection', 'keep-alive')
+headers = {
+    'User-Agent':   'vvt.vim/1.0',
+    'Content-Type': 'application/json',
+    'Connection':   'keep-alive'
+}
+
+http = urllib3.PoolManager(
+    10,
+    headers=headers,
+    cert_reqs='CERT_REQUIRED',
+    ca_certs=certifi.where()
+)
 
 try:
-    res = urllib2.urlopen(req)
-    data = json.loads(res.read())
+    res = http.request('GET', url)
+    data = json.loads(res.data)
 
     f = open(file, 'wb')
     f.write(data['code'])
     f.close()
 
-    vim.command('let ft = "' + data['language'] + '"')
-    vim.command('let fn = "' + data['slug'] + '"')
-except urllib2.HTTPError, e:
+    vim.command('let l:ft = "' + data['language'] + '"')
+    vim.command('let l:fn = "' + data['slug'] + '"')
+except urllib3.exceptions.HTTPError, e:
     vim.command('echoerr "vvt.nu" "' + str(e.code) + ": " + e.reason + '"')
 endpython
 
-    if ft ==# 'c_cpp'
-        let ft='cpp'
+    if l:ft ==# 'c_cpp'
+        let l:ft='cpp'
     endif
 
-    execute 'edit '.file
-    exec 'set filetype='.ft
+    execute 'edit ' . l:file
+    exec 'set filetype=' . l:ft
 endfunction
 
 command! -nargs=? -range=% VVTPaste :call VVT(<line1>, <line2>)
